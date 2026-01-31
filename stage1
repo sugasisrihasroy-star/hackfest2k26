@@ -1,0 +1,330 @@
+#include <Keypad.h>
+#include <IRremote.h>
+#include <LiquidCrystal.h>
+#include <Servo.h>
+
+Servo myservo;
+
+LiquidCrystal lcd(A0, A1, A2, A3, A4, A5);
+
+#define Password_Lenght 6 // Give enough room for six chars + NULL char
+
+#define BUTTON_PREV 0xFF22DD
+#define BUTTON_next 0xFF02FD
+#define BUTTON_PLUS 0xFFA857  // type the ir numbers here
+#define BUTTON_MINUS 0xFFE01F  // example :  0x XX_XX_XX
+
+
+int pos = 0;    // variable to store the servo position
+int RECV_PIN = 10;
+
+char Data[Password_Lenght]; // 6 is the number of chars it can hold + the null char = 7
+char Master[Password_Lenght] = "1234#";
+byte data_count = 0, master_count = 0; 
+bool Pass_is_good;
+char customKey;
+
+const byte ROWS = 4;
+const byte COLS = 3;
+char keys[ROWS][COLS] = {
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+  {'7', '8', '9'},
+  {'*', '0', '#'}
+};
+bool door = true;
+
+byte rowPins[ROWS] = {1, 2, 3, 4}; //connect to the row pinouts of the keypad
+byte colPins[COLS] = {5, 6, 7}; //connect to the column pinouts of the keypad
+
+Keypad customKeypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS); //initialize an instance of class NewKeypad
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+
+void setup()
+{ 
+  irrecv.enableIRIn();
+  pinMode(13,OUTPUT);
+  pinMode(12,OUTPUT);
+  myservo.attach(9);
+  ServoClose();
+  digitalWrite(13,HIGH);
+  digitalWrite(12,LOW);
+  lcd.begin(16, 2);
+lcd.print("   WELCOME!!   ");
+ delay(2000);
+ lcd.clear();
+
+}
+
+void loop()
+{
+if (irrecv.decode(&results))
+  {
+  
+if (results.value == BUTTON_PLUS)
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("   DOOR OPEN!");
+      myservo.write(0);
+      delay(3000);
+      myservo.write(180);
+       lcd.clear();
+      lcd.print("  DOOR CLOSED!");
+      delay(1000);
+    }
+   
+if (results.value == BUTTON_MINUS)
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("   DOOR CLOSED!");
+      myservo.write(180);
+      delay(2000);
+    }
+
+if (results.value == BUTTON_next)
+    {
+ lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("   DOOR CLOSED!");
+      myservo.write(180);
+      delay(2000);
+    }
+
+
+if (results.value == BUTTON_PREV)
+    
+    {
+ lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("   DOOR OPEN!");
+      myservo.write(0);
+      delay(3000);
+      myservo.write(180);
+       lcd.clear();
+      lcd.print("  DOOR CLOSED!");
+      delay(1000);
+    }
+
+   
+    irrecv.resume();
+}
+
+{
+  if (door == 0)
+  {
+    customKey = customKeypad.getKey();
+
+    if (customKey == '#')
+
+    {
+      lcd.clear();
+      ServoClose();
+      lcd.print(" DOOR IS CLOSED!! ");
+      digitalWrite(13,HIGH);
+      digitalWrite(12,LOW);
+      delay(3000);
+      door = 1;
+    }
+  }
+
+  else Open();
+}
+}
+
+void clearData()
+{
+  while (data_count != 0)
+  { // This can be used for any array size,
+    Data[data_count--] = 0; //clear array for new data
+  }
+  return;
+}
+
+void ServoOpen()
+{
+  for (pos = 180; pos >= 0; pos -= 5) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+}
+
+void ServoClose()
+{
+  for (pos = 0; pos <= 180; pos += 5) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(5);                       // waits 15ms for the servo to reach the position
+  }
+}
+
+void Open()
+{
+  lcd.setCursor(0, 0);
+  lcd.print("PASSWORD PLEASE!!");
+ 
+  
+  customKey = customKeypad.getKey();
+  if (customKey) // makes sure a key is actually pressed, equal to (customKey != NO_KEY)
+  {
+    Data[data_count] = customKey; // store char into data array
+    lcd.setCursor(data_count, 1); // move cursor to show each new char
+    lcd.print(Data[data_count]); // print char at said cursor
+    data_count++; // increment data array by 1 to store new char, also keep track of the number of chars entered
+  }
+
+  if (data_count == Password_Lenght - 1) // if the array index is equal to the number of expected chars, compare data to master
+  {
+    if (!strcmp(Data, Master)) // equal to (strcmp(Data, Master) == 0)
+    {
+      lcd.clear();
+      ServoOpen();
+      lcd.print("  HELLO UMAR!! ");
+      lcd.setCursor(0,1);
+      lcd.print("UR DOOR IS OPEN!");
+      delay(1500);
+      digitalWrite(13,LOW);
+      digitalWrite(12,HIGH);
+      door = 0;
+      delay(1500);
+      lcd.clear();
+      lcd.print("PULL D DOOR HARD");
+      lcd.setCursor(0,1);
+      lcd.print(" AND PRESS '#'");
+    }
+    else
+    {
+      lcd.clear();
+      lcd.print("   PASSWORD IS   ");
+      lcd.setCursor(0,1);
+      lcd.print("   INCORRECT!!  ");
+      delay(2000);
+      lcd.clear(); 
+      lcd.print("IF U WANT A CLUE");
+      lcd.setCursor(0,1);
+      lcd.print("WAIT 15 SECONDS!");
+       delay(2000);
+       lcd.clear();
+       lcd.print(" OR ELSE SWITCH  ");
+      lcd.setCursor(0,1);
+      lcd.print("OFF AND ON AGAIN");
+      delay(3000);
+       lcd.clear();
+       lcd.print("       15");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       14");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       13");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       12");
+       delay(1000);
+      lcd.clear();
+       lcd.print("       11");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       10");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       09");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       08");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       07");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       06");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       05");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       04");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       03");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       02");
+       delay(1000);
+       lcd.clear();
+       lcd.print("       01");
+
+       delay(1000);
+       lcd.clear();
+       
+       lcd.print(" SOLVE THIS IN");
+       lcd.setCursor (0,1);
+       lcd.print("  TEN SECONDS");
+       delay(2000);
+       lcd.clear();
+       
+      
+       
+        lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      10");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      09");
+       delay(1000);
+       lcd.clear();
+      lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      08");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      07");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      06");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      05");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      04");
+       delay(1000);
+       lcd.clear();lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      03");
+       delay(1000);
+       lcd.clear();lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      02");
+       delay(1000);
+       lcd.clear();
+       lcd.print("1000*3+200+50-12 ");
+        lcd.setCursor (0,1);
+        lcd.print("      01");
+       delay(1000);
+       lcd.clear();
+       lcd.print("    TIMES UP! ");
+       delay(2000);
+       lcd.clear();
+       lcd.print("  NOW TYPE THE ");
+       lcd.setCursor (0,1);
+       lcd.print("   PASSWORD!!");
+       delay(2000);
+       lcd.clear();
+           door = 1;
+    }
+    clearData();
+  }
+}
