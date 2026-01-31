@@ -1,0 +1,103 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+
+// -------- LCD --------
+LiquidCrystal_I2C lcd(0x27, 16, 2);   // change to 0x3F if needed
+
+// -------- DHT --------
+#define DHTPIN 2
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// -------- OTHER SENSORS --------
+#define FLAME_PIN 3
+#define VIBRATION_PIN 4
+#define GAS_PIN A0
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+
+  pinMode(FLAME_PIN, INPUT);
+  pinMode(VIBRATION_PIN, INPUT);
+  pinMode(GAS_PIN, INPUT);
+
+  dht.begin();
+
+  // LCD init
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Safety System");
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
+  delay(2000);
+  lcd.clear();
+
+  Serial.println("=== Sensor Monitoring Started ===");
+}
+
+void loop() {
+  // ---- Read Sensors ----
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+
+  int flame = digitalRead(FLAME_PIN);
+  int vibration = digitalRead(VIBRATION_PIN);
+  int gas = analogRead(GAS_PIN);
+
+  // ---- SERIAL MONITOR ----
+  Serial.println("----------------------------");
+
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("DHT11 Error!");
+  } else {
+    Serial.print("Temp: ");
+    Serial.print(temp);
+    Serial.println(" C");
+
+    Serial.print("Humidity: ");
+    Serial.print(hum);
+    Serial.println(" %");
+  }
+
+  Serial.print("Flame: ");
+  Serial.println(flame == LOW ? "FIRE!" : "Safe");
+
+  Serial.print("Vibration: ");
+  Serial.println(vibration == HIGH ? "Detected" : "Normal");
+
+  Serial.print("Gas Value: ");
+  Serial.println(gas);
+
+  // ---- LCD DISPLAY ----
+  lcd.clear();
+
+  // Line 1: Temp & Humidity
+  if (!isnan(temp) && !isnan(hum)) {
+    lcd.setCursor(0, 0);
+    lcd.print("T:");
+    lcd.print(temp, 0);
+    lcd.print("C H:");
+    lcd.print(hum, 0);
+    lcd.print("%");
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("DHT Error");
+  }
+
+  // Line 2: Status
+  lcd.setCursor(0, 1);
+  if (flame == LOW) {
+    lcd.print("FIRE ALERT!");
+  } else if (gas > 600) {
+    lcd.print("GAS ALERT!");
+  } else if (vibration == HIGH) {
+    lcd.print("VIBRATION!");
+  } else {
+    lcd.print("System Normal");
+  }
+
+  delay(2000);
+}
