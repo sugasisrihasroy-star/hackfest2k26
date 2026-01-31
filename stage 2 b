@@ -1,0 +1,35 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Create an LCD object with the I2C address (usually 0x27 or 0x3F)
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Adjust the I2C address if needed
+
+const int waterLevelPin = A3; // Pin for the water level sensor
+
+void setup() {
+  // Initialize the I2C communication
+  Wire.begin();  // Initialize I2C communication (this is implicit when using LiquidCrystal_I2C)
+  lcd.begin(16, 2);  // Initialize the LCD (16x2)
+  lcd.backlight();   // Turn on the backlight
+  
+  // Print initial message
+  lcd.setCursor(0, 0);  // Set cursor to the top-left of the screen
+  lcd.print("Water Level:");
+}
+
+void loop() {
+  // Read the water level sensor value (0-1023)
+  int sensorValue = analogRead(waterLevelPin);
+  
+  // Map the sensor value to a percentage (0-100%)
+  int waterLevelPercent = map(sensorValue, 0, 1023, 0, 100);
+  
+  // Clear the second line and print the water level
+  lcd.setCursor(0, 1);  // Move cursor to the second row
+  lcd.print("Level: ");
+  lcd.print(waterLevelPercent);
+  lcd.print("%   "); // Add spaces to clear any previous characters
+
+  // Small delay for stability
+  delay(500);
+}
